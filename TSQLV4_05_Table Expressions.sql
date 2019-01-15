@@ -229,7 +229,6 @@ DROP VIEW IF EXISTS Sales.USACusts;
 GO
 CREATE VIEW Sales.USACusts
 AS
-
 SELECT
   custid, companyname, contactname, contacttitle, address,
   city, region, postalcode, country, phone, fax
@@ -268,7 +267,6 @@ GO
 -- Do not Rely on TOP 
 ALTER VIEW Sales.USACusts
 AS
-
 SELECT TOP (100) PERCENT
   custid, companyname, contactname, contacttitle, address,
   city, region, postalcode, country, phone, fax
@@ -285,7 +283,6 @@ GO
 -- DO NOT rely on OFFSET-FETCH, even if for now the engine does return rows in rder
 ALTER VIEW Sales.USACusts
 AS
-
 SELECT 
   custid, companyname, contactname, contacttitle, address,
   city, region, postalcode, country, phone, fax

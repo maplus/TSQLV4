@@ -160,18 +160,18 @@ empid       mgrid       firstname  lastname
 
 (4 row(s) affected)
 
-with cte as (                                                   ----<<< continue
+with cte as (
   SELECT empid, mgrid, firstname, lastname
   FROM HR.Employees
-  WHERE empid = 2
+  WHERE empid = 9
   UNION ALL
-  SELECT C.empid, C.mgrid, C.firstname, C.lastname
-  FROM cte AS P
-    INNER JOIN HR.Employees AS C
+  SELECT P.empid, P.mgrid, P.firstname, P.lastname
+  FROM cte AS C
+    INNER JOIN HR.Employees AS P
       ON C.mgrid = P.empid
 )
 select e.empid, e.mgrid, e.firstname, e.lastname
-from HR.Employees e
+from cte e;
 
 
 -- 5-1
@@ -213,6 +213,18 @@ empid       orderyear   qty
 
 (27 row(s) affected)
 
+create view Sales.VEmpOrders as
+with CTE as (
+	select o.empid, DATEPART(year, o.orderdate) orderyear, d.qty
+	from Sales.Orders o join Sales.OrderDetails d on o.orderid = d.orderid
+)
+select empid, orderyear, sum(qty) qty
+from CTE
+group by empid, orderyear;
+
+SELECT * FROM  Sales.VEmpOrders ORDER BY empid, orderyear;
+
+
 -- 5-2 (Optional, Advanced)
 -- Write a query against Sales.VEmpOrders
 -- that returns the running qty for each employee and year
@@ -251,6 +263,21 @@ empid       orderyear   qty         runqty
 
 (27 row(s) affected)
 
+select v.empid, v.orderyear, v.qty/*,
+	sum(v.qty) over (partition v.empid) runqty*/
+from Sales.VEmpOrders v;
+
+select
+	v1.empid, v1.orderyear, v1.qty,
+	(
+	select sum(v2.qty)
+	from Sales.VEmpOrders v2
+	where v2.empid = v1.empid and v2.orderyear <= v1.orderyear
+	) runqty
+from Sales.VEmpOrders v1
+order by v1.empid, v1.orderyear;
+
+
 -- 6-1
 -- Create an inline function that accepts as inputs
 -- a supplier id (@supid AS INT), 
@@ -268,6 +295,18 @@ productid   productname                              unitprice
 11          Product QMVUN                            21.00
 
 (2 row(s) affected)
+
+drop function Production.TopProducts;
+create function Production.TopProducts(@supid AS INT, @n AS INT) returns table
+as
+return
+select top(@n) p.productid, p.productname, p.unitprice
+from Production.Products p
+where p.supplierid = @supid
+order by p.unitprice desc;
+
+SELECT * FROM Production.TopProducts(5, 2);
+
 
 -- 6-2
 -- Using the CROSS APPLY operator
@@ -288,6 +327,10 @@ supplierid  companyname     productid   productname     unitprice
 ...
 
 (55 row(s) affected)
+
+select s.supplierid, s.companyname, p.productid, p.productname, p.unitprice
+from Production.Suppliers s cross apply Production.TopProducts(s.supplierid, 2) p
+
 
 -- When you’re done, run the following code for cleanup:
 DROP VIEW IF EXISTS Sales.VEmpOrders;
