@@ -34,7 +34,9 @@ from dbo.orders o;
 -- distinct values and their associated row numbers
 USE TSQLV4;
 
-SELECT val, ROW_NUMBER() OVER(ORDER BY val) AS rownum
+SELECT
+	val,
+	ROW_NUMBER() OVER(ORDER BY val) AS rownum
 FROM Sales.OrderValues
 GROUP BY val;
 
@@ -93,7 +95,8 @@ C      10006       14          -8          -6
 C      20002       20          6           NULL
 D      30007       30          NULL        NULL
 
-select o.custid, o.orderid, o.qty, --o.orderdate,
+select
+	o.custid, o.orderid, o.qty,
 	o.qty - lag(o.qty) over(partition by o.custid order by o.orderdate) diffpref,
 	o.qty - lead(o.qty) over(partition by o.custid order by o.orderdate) diffpref
 from dbo.Orders o;
@@ -156,6 +159,17 @@ from
 	from dbo.Orders o
 	) x
 group by x.empid;
+
+--select count(null) from dbo.Orders o; --Operand data type NULL is invalid for count operator
+
+/*select
+	case when x.orderyear = 2014 then x.orderyear end test
+from
+	(
+	select o.empid,
+		YEAR(o.orderdate) orderyear
+	from dbo.Orders o
+	) x;*/
 
 
 -- 5
