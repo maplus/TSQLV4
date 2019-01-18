@@ -25,7 +25,8 @@ CREATE TABLE dbo.Customers
 -- city:        Redmond
 
 insert into dbo.Customers--(custid, companyname, country, region, city)
-values(100, 'Coho Winery', 'USA', 'WA', 'Redmond');
+values(100, N'Coho Winery', N'USA', N'WA', N'Redmond');
+
 
 -- 1-2
 -- Insert into the dbo.Customers table 
@@ -35,6 +36,14 @@ values(100, 'Coho Winery', 'USA', 'WA', 'Redmond');
 insert into dbo.Customers--(custid, companyname, country, region, city)
 select distinct c.custid, c.companyname, c.country, c.region, c.city
 from sales.Customers c join sales.Orders o on c.custid = o.custid;
+
+INSERT INTO dbo.Customers(custid, companyname, country, region, city)
+SELECT custid, companyname, country, region, city
+FROM Sales.Customers AS C
+WHERE EXISTS(
+	SELECT * FROM Sales.Orders AS O
+    WHERE O.custid = C.custid
+);
 
 
 -- 1-3
@@ -50,13 +59,15 @@ from Sales.Orders o
 where o.orderdate >= cast('20140101' as date) and  o.orderdate < cast('20150101' as date)
 */
 
-select o.[orderid], o.[custid], o.[empid], o.[orderdate], o.[requireddate], o.[shippeddate], o.[shipperid], o.[freight], o.[shipname], o.[shipaddress], o.[shipcity], o.[shipregion], o.[shippostalcode], o.[shipcountry]
+select
+	* 
+	--o.[orderid], o.[custid], o.[empid], o.[orderdate], o.[requireddate], o.[shippeddate], o.[shipperid], o.[freight], o.[shipname], o.[shipaddress], o.[shipcity], o.[shipregion], o.[shippostalcode], o.[shipcountry]
 into dbo.orders
 from Sales.Orders o
 where o.orderdate >= cast('20140101' as date) and  o.orderdate < cast('20150101' as date)
 
 
--- 2                                                                                        --<<< continue
+-- 2
 -- Delete from the dbo.Orders table
 -- orders that were placed before August 2014
 -- Use the OUTPUT clause to return the orderid and orderdate
@@ -90,8 +101,41 @@ orderid     orderdate
 
 (22 row(s) affected)
 
+select orderid, orderdate from dbo.orders where orderdate < cast('20140801' as date)
+
+delete from dbo.orders
+output deleted.orderid, deleted.orderdate
+where orderdate < cast('20140801' as date);
+
+
 -- 3
 --- Delete from the dbo.Orders table orders placed by customers from Brazil
+
+select *
+from dbo.orders o join dbo.Customers c on o.custid = c.custid
+where c.country = N'Brazil';
+
+delete from dbo.orders where custid in(
+	select custid from dbo.Customers where country = N'Brazil'
+);
+
+delete from o
+from dbo.orders o join dbo.Customers c on o.custid = c.custid
+where c.country = N'Brazil';
+
+delete from dbo.orders
+where exists(
+	select *
+	from dbo.Customers c
+	where orders.custid = c.custid
+		and c.country = N'Brazil'
+);
+
+merge into dbo.orders o
+using dbo.customers c
+on o.custid = c.custid and c.country = N'Brazil'
+when matched then delete;
+
 
 -- 4
 -- Run the following query against dbo.Customers,
@@ -182,10 +226,53 @@ custid      oldregion       newregion
 
 (58 row(s) affected)
 
+update dbo.Customers
+set region = '<None>'
+output deleted.custid, deleted.region oldregion, inserted.region newregion
+where region is null;
+
+
 -- 5
 -- Update in the dbo.Orders table all orders placed by UK customers
 -- and set their shipcountry, shipregion, shipcity values
 -- to the country, region, city values of the corresponding customers from dbo.Customers
+
+select * from dbo.Customers where country = 'UK';
+
+update o set o.shipcountry = c.country, o.shipregion = c.region, o.shipcity = c.city
+from dbo.Orders o join dbo.Customers c on o.custid = c.custid
+where c.country = N'UK';
+
+with CTE as (
+	select c.custid, c.country, c.region, c.city
+	from dbo.Customers c
+	where c.country = N'UK'
+)
+update o set o.shipcountry = c.country, o.shipregion = c.region, o.shipcity = c.city
+from dbo.orders o join CTE c on o.custid = c.custid;
+
+WITH CTE_UPD AS
+(
+  SELECT
+    O.shipcountry AS ocountry, C.country AS ccountry,
+    O.shipregion  AS oregion,  C.region  AS cregion,
+    O.shipcity    AS ocity,    C.city    AS ccity
+  FROM dbo.Orders AS O
+    INNER JOIN dbo.Customers AS C
+      ON O.custid = C.custid
+  WHERE C.country = N'UK'
+)
+UPDATE CTE_UPD
+  SET ocountry = ccountry, oregion = cregion, ocity = ccity;
+
+merge dbo.orders o
+using dbo.customers c
+on o.custid = c.custid and c.country = N'UK'
+when matched then update set
+	o.shipcountry = c.country,
+	o.shipregion = c.region,
+	o.shipcity = c.city;
+
 
 -- 6
 -- Run the following code to create the tables Orders and OrderDetails and populate them with data
@@ -238,6 +325,14 @@ INSERT INTO dbo.OrderDetails SELECT * FROM Sales.OrderDetails;
 
 -- Write and test the T-SQL code that is required to truncate both tables,
 -- and make sure that your code runs successfully
+-- TRUNCATE TABLE dbo.Orders; -- Cannot truncate table 'dbo.Orders' because it is being referenced by a FOREIGN KEY constraint.
+TRUNCATE TABLE  dbo.OrderDetails;
+-- TRUNCATE TABLE  dbo.Orders; -- Cannot truncate table 'dbo.Orders' because it is being referenced by a FOREIGN KEY constraint.
+ALTER TABLE dbo.OrderDetails DROP CONSTRAINT FK_OrderDetails_Orders;
+TRUNCATE TABLE  dbo.Orders;
+ALTER TABLE dbo.OrderDetails ADD CONSTRAINT FK_OrderDetails_Orders
+  FOREIGN KEY(orderid) REFERENCES dbo.Orders(orderid);
+
 
 -- When you're done, run the following code for cleanup
 DROP TABLE IF EXISTS dbo.OrderDetails, dbo.Orders, dbo.Customers;
