@@ -10,20 +10,27 @@
 -- Also include columns called validfrom and validto that define the
 -- validity period of the row. Define those with precision zero (1 second)
 -- and make them hidden.
-use TSQLV4;
+USE TSQLV4;
 
-create table dbo.Departments(
-	deptid INT, deptname VARCHAR(25), mgrid INT --, all disallowing NULLs
-);
-
-create table dbo.DepartmentsHistory(
-
-);
+ALTER TABLE [dbo].[Departments] SET ( SYSTEM_VERSIONING = OFF  )
+DROP TABLE IF EXISTS dbo.Departments, dbo.DepartmentsHistory;
+CREATE TABLE dbo.Departments(
+	deptid INT IDENTITY(1,1) NOT NULL
+		CONSTRAINT PK_Employees PRIMARY KEY CLUSTERED (deptid ASC) /*Default: WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]*/,
+	deptname VARCHAR(25) NOT NULL,
+	mgrid INT NOT NULL,
+	validfrom DATETIME2(0)
+		GENERATED ALWAYS AS ROW START HIDDEN NOT NULL,
+	validto DATETIME2(0)
+		GENERATED ALWAYS AS ROW END   HIDDEN NOT NULL,
+	PERIOD FOR SYSTEM_TIME (validfrom, validto)
+) WITH ( SYSTEM_VERSIONING = ON ( HISTORY_TABLE = dbo.DepartmentsHistory ) );
 
 
 -- 1-2
 -- Browse the object tree in Object Explorer in SSMS and identify the
 -- Departments table and its associated history table.
+
 
 -- 2
 -- In this exercise you will modify data in the table Departments.
@@ -42,13 +49,56 @@ create table dbo.DepartmentsHistory(
 -- deptid: 3, deptname: Sales, mgrid: 11
 -- deptid: 4, deptname: Marketing, mgrid: 13
 
+DECLARE @P1 DATETIME =  SYSUTCDATETIME();
+BEGIN TRAN;
+
+INSERT INTO dbo.Departments(deptname, mgrid)
+VALUES
+	(N'HR', 7),
+	(N'IT', 5),
+	(N'Sales', 11),
+	(N'Marketing', 13);
+
+SELECT * FROM dbo.Departments;
+SELECT * FROM dbo.DepartmentsHistory;
+
+COMMIT TRAN;
+SELECT @P1 AS P1;
+
+
 -- 2-2
 -- In one transaction, update the name of department 3 to Sales and Marketing
 -- and delete department 4. Call the point in time when the transaction starts P2.
 
+DECLARE @P2 DATETIME =  SYSUTCDATETIME();
+BEGIN TRAN;
+
+UPDATE dbo.Departments SET deptname = N'Sales and Marketing' WHERE deptid = 3;
+DELETE FROM dbo.Departments WHERE deptid = 4;
+
+SELECT d.*, d.validfrom, d.validto FROM dbo.Departments d;
+SELECT * FROM dbo.DepartmentsHistory;
+
+COMMIT TRAN;
+SELECT @P2 AS P2;
+
+
 -- 2-3
 -- Update the manager ID of department 3 to 13. Call the point in time
 -- when you apply this update P2.
+
+
+DECLARE @P2 DATETIME =  SYSUTCDATETIME();
+BEGIN TRAN;
+
+UPDATE dbo.Departments SET mgrid = 13 WHERE deptid = 3;
+
+SELECT d.*, d.validfrom, d.validto FROM dbo.Departments d;
+SELECT * FROM dbo.DepartmentsHistory;
+
+COMMIT TRAN;
+SELECT @P2 AS P2;
+
 
 -- 3
 -- In this exercise you will query data from the table Departments.
