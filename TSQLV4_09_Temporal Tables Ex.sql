@@ -12,11 +12,13 @@
 -- and make them hidden.
 USE TSQLV4;
 
+Sp_tables;
+
 ALTER TABLE [dbo].[Departments] SET ( SYSTEM_VERSIONING = OFF  )
 DROP TABLE IF EXISTS dbo.Departments, dbo.DepartmentsHistory;
 CREATE TABLE dbo.Departments(
 	deptid INT IDENTITY(1,1) NOT NULL
-		CONSTRAINT PK_Employees PRIMARY KEY CLUSTERED (deptid ASC) /*Default: WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]*/,
+		CONSTRAINT PK_Departments PRIMARY KEY CLUSTERED (deptid ASC) /*Default: WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]*/,
 	deptname VARCHAR(25) NOT NULL,
 	mgrid INT NOT NULL,
 	validfrom DATETIME2(0)
@@ -113,6 +115,10 @@ deptid      deptname                  mgrid
 2           IT                        5
 3           Sales and Marketing       13
 
+select deptid, deptname, mgrid from dbo.Departments;
+select * from dbo.Departments;
+
+
 -- 3-2
 -- Query the state of the table Departments at a point in time after P2
 -- and before P3.
@@ -123,6 +129,11 @@ deptid      deptname                  mgrid
 1           HR                        7
 2           IT                        5
 3           Sales and Marketing       11
+
+SELECT *
+FROM dbo.Departments
+  FOR SYSTEM_TIME AS OF '2019-01-21 21:41:00'; -- replace this with your time
+
 
 -- 3-3
 -- Query the state of the table Departments in the period between P2 and P3.
@@ -136,6 +147,11 @@ deptid  deptname             mgrid  validfrom            validto
 2       IT                   5      2016-02-18 10:26:07  9999-12-31 23:59:59
 3       Sales and Marketing  13     2016-02-18 10:30:40  9999-12-31 23:59:59
 3       Sales and Marketing  11     2016-02-18 10:28:27  2016-02-18 10:30:40
+
+SELECT deptid, deptname, mgrid, validfrom, validto
+FROM dbo.Departments
+  FOR SYSTEM_TIME BETWEEN '2019-01-21 21:00:00'  -- replace this with your P2
+                      AND '2019-01-21 23:00:00'; -- replace this with your P3
 
 -- 4
 -- Drop the table Departments and its associated history table.
