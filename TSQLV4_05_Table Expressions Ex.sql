@@ -173,6 +173,28 @@ with cte as (
 select e.empid, e.mgrid, e.firstname, e.lastname
 from cte e;
 
+-- ENHNANCED Recursive CTE approach
+-- DB: [AdventureWorksDW2017]
+with cte as (
+  SELECT e.EmployeeKey, e.ParentEmployeeKey, e.firstname, e.lastname, 0 as rec_level
+  FROM dbo.DimEmployee e
+  UNION ALL
+  SELECT P.EmployeeKey, P.ParentEmployeeKey, P.firstname, P.lastname, rec_level + 1
+  FROM cte AS C
+    INNER JOIN dbo.DimEmployee AS P
+      ON C.ParentEmployeeKey = P.EmployeeKey
+)
+select
+	replicate(' ', (tot_max_rec_level - max_rec_level) * 3) + x.lastname + ', ' + x.firstname as employee_hier
+from (
+select e.EmployeeKey, e.ParentEmployeeKey, e.lastname, e.firstname, max(rec_level) as max_rec_level,
+	(select max(rec_level) from cte) as tot_max_rec_level
+from cte e
+group by e.EmployeeKey, e.ParentEmployeeKey, e.firstname, e.lastname
+--order by max_rec_level desc, e.lastname, e.firstname, e.EmployeeKey
+) x
+order by x.max_rec_level desc, employee_hier;
+
 
 -- 5-1
 -- Create a view that returns the total qty
